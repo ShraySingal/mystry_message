@@ -8,6 +8,7 @@ import { messageSchema } from "@/schemas/messageSchema";
 import { ApiResponse } from "@/types/ApiResponse";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+var length =0;
 
 type Message = z.infer<typeof messageSchema> & { _id: string };
 
@@ -23,6 +24,7 @@ const AllMessages = () => {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const[length,setLength]= useState(0);
 
   useEffect(() => {
   const getAllMessages = async () => {
@@ -30,6 +32,9 @@ const AllMessages = () => {
       const res = await axios.get<ApiResponse>("/api/get-messages");
       console.log("this is data",res.data);
       setMessages(res.data.messages ?? []); 
+      // setLength(res.data.messages?.length);
+      // console.log(length);
+      
 
     } catch (err) {
       console.error("Error loading messages", err);
@@ -37,6 +42,7 @@ const AllMessages = () => {
     } finally {
       setLoading(false);
     }
+    
   };
   getAllMessages();
 }, []);
@@ -46,7 +52,7 @@ const AllMessages = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-200 via-pink-100 to-blue-100 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">All Messages</h1>
+          <h1 className="text-3xl font-bold text-gray-800">All Messages <span>{messages.length}</span></h1>
           <Button
             variant="ghost"
             className="text-gray-600 hover:text-black flex gap-2 items-center"

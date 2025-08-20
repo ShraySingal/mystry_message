@@ -1,79 +1,63 @@
 import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/model/User";
-import { Message } from "@/model/User";
-import { acceptMessageSchema } from "@/schemas/acceptMessageSchema";
-import mongoose from "mongoose";
 
 export async function POST(request: Request) {
+  console.log("➡️ Received request on /api/send-message");
+
   await dbConnect();
-  
+
   try {
     const { username, content } = await request.json();
+    console.log("📩 Request body:", { username, content });
 
-    // Validate input
     if (!username || !content) {
-      return Response.json({
-        success: false,
-        message: "Username and message content are required"
-      }, { status: 400 });
+      console.log("❌ Missing username or content");
+      return Response.json(
+        { success: false, message: "Username and message content are required" },
+        { status: 400 }
+      );
     }
-
-    console.log("Database connection state:", mongoose.connection.readyState);
 
     const user = await UserModel.findOne({ username });
+    console.log("👤 User lookup result:", user);
 
     if (!user) {
-      return Response.json({
-        success: false,
-        message: "User not found"
-      }, { status: 404 });
+      console.log(`❌ User not found: ${username}`);
+      return Response.json(
+        { success: false, message: "User not found" },
+        { status: 404 }
+      );
     }
 
-    console.log("User document:", user);
-    console.log("isAcceptingMessage value:", user.isAcceptingMessages, typeof user.isAcceptingMessages);
-
-    // Handle different possible truthy values
-    const acceptsMessages = user.isAcceptingMessages === true || 
-                          user.isAcceptingMessages === 'true' || 
-                          user.isAcceptingMessages === 1;
-
-    if (!acceptsMessages) {
-      return Response.json({
-        success: false,
-        message: `User ${username} is not accepting messages at this time`,
-        debug: {
-          actualValue: user.isAcceptingMessages,
-          type: typeof user.isAcceptingMessages,
-          convertedValue: acceptsMessages
-        }
-      }, { status: 403 });
-    }
-
-    // Update using direct query
-    const updateResult = await UserModel.updateOne(
-      { username },
-      { $push: { messages: { content, createdAt: new Date() } } }
+    console.log(
+      `✅ Found user: ${user.username}, accepting messages: ${user.isAcceptingMessages}`
     );
 
-    console.log("Update result:", updateResult);
-
-    if (updateResult.modifiedCount === 0) {
-      return Response.json({
-        success: false,
-        message: "Failed to save message"
-      }, { status: 500 });
+    if (!user.isAcceptingMessages) {
+      console.log(`⚠️ User ${username} is NOT accepting messages`);
+      return Response.json(
+        { success: false, message: `User ${username} is not accepting messages` },
+        { status: 403 }
+      );
     }
 
-    return Response.json({
-      success: true,
-      message: "Message sent successfully"
-    }, { status: 200 });
+    console.log("📝 Pushing new message to user.messages...");
+    user.messages.push({ content, createdAt: new Date() });
 
+    await user
+      .save()
+      .then(() => console.log("💾 Message saved to DB successfully"))
+      .catch((error:Error) => console.error("❌ Error while saving message:", error));
+
+    return Response.json(
+      { success: true, message: "Message sent successfully" },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("Error in send-message API:", error);
-    return Response.json({
-      success: false,
-      message: "Internal server error",
-    }, { status: 500 });
+    console.error("🔥 Error in send-message API:", error);
+    return Response.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
